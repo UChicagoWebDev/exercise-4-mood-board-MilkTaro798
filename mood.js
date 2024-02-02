@@ -4,11 +4,13 @@ const bing_api_key = BING_API_KEY
 function runSearch() {
 
   // TODO: Clear the results pane before you run a new search
-
+  clearResults();
   openResultsPane();
 
   // TODO: Build your query by combining the bing_api_endpoint and a query attribute
   //  named 'q' that takes the value from the search bar input field.
+  const searchTerm = document.getElementById('searchInput').value;
+  const queryURL = `${bing_api_endpoint}?q=${encodeURIComponent(searchTerm)}`;
 
   let request = new XMLHttpRequest();
 
@@ -24,14 +26,76 @@ function runSearch() {
   //     display them to the user
   //   - HINT: You'll need to ad even listeners to them after you add them to the DOM
   //
-  // request.setRequestHeader("Ocp-Apim-Subscription-Key", bing_api_key);
+  
+  request.open("GET", queryURL, true);
+  request.responseType = "json";
+  request.onload = handleResponse;
+  request.onerror = handleError;
+  request.ontimeout = handleTimeout; 
 
+  
+  request.setRequestHeader("Ocp-Apim-Subscription-Key", bing_api_key);
   // TODO: Send the request
+  request.send();
 
   return false;  // Keep this; it keeps the browser from sending the event
                   // further up the DOM chain. Here, we don't want to trigger
                   // the default form submission behavior.
 }
+
+function clearResults() {
+  document.getElementById("resultsImageContainer").innerHTML = "";
+}
+
+function handleError() {
+  console.error('Network Error');
+}
+
+function handleTimeout() {
+  console.error('Request Timeout');
+}
+
+function handleResponse() {
+  if (this.status === 200) {
+    const response = this.response;
+    if (response.value && response.value.length > 0) {
+      const fragment = document.createDocumentFragment();
+      response.value.forEach(imageResult => {
+        fragment.appendChild(createImageElement(imageResult));
+      });
+      document.getElementById("resultsImageContainer").appendChild(fragment);
+    }
+  } else {
+    console.error('Request failed', this.status);
+  }
+}
+
+function createImageElement(imageResult) {
+  let imgElem = document.createElement("img");
+  imgElem.src = imageResult.thumbnailUrl;
+  let divElem = document.createElement("div");
+  divElem.className = "resultImage";
+  divElem.appendChild(imgElem);
+  imgElem.addEventListener("click", () => addToMoodBoard(imageResult.contentUrl));
+  return divElem;
+}
+
+function addToMoodBoard(imageUrl) {
+  let imgElem = document.createElement("img");
+  imgElem.src = imageUrl;
+  let divElem = document.createElement("div");
+  divElem.className = "savedImage";
+  divElem.appendChild(imgElem);
+  document.getElementById("board").appendChild(divElem);
+}
+
+let suggestions = document.querySelectorAll(".suggestion");
+suggestions.forEach(function(suggestion) {
+  suggestion.onclick = function() {
+    document.getElementById("searchInput").value = this.innerText;
+    runSearch();
+  };
+});
 
 function openResultsPane() {
   // This will make the results pane visible.
